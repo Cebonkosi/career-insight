@@ -1,16 +1,22 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import type { LucideIcon } from 'lucide-react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Spacing } from '@/constants/theme';
+import { Fonts, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type ChipProps = {
   label: string;
   selected?: boolean;
   onPress?: () => void;
+  /** Unselected chips are plain text in the mockups; set to draw an outline instead. */
+  outlined?: boolean;
+  trailingIcon?: LucideIcon;
 };
 
-export function Chip({ label, selected, onPress }: ChipProps) {
+/** Filter pill: solid purple when selected, plain or outlined text otherwise. */
+export function Chip({ label, selected, onPress, outlined, trailingIcon: Icon }: ChipProps) {
   const theme = useTheme();
+  const color = selected ? theme.onPrimary : theme.textSecondary;
 
   return (
     <Pressable
@@ -20,47 +26,61 @@ export function Chip({ label, selected, onPress }: ChipProps) {
       disabled={!onPress}
       style={[
         styles.chip,
-        selected
-          ? { backgroundColor: theme.primary, borderColor: theme.primary }
-          : { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+        selected && { backgroundColor: theme.primary, borderColor: theme.primary },
+        !selected && outlined && { backgroundColor: theme.backgroundElement, borderColor: theme.border },
       ]}>
-      <Text style={[styles.label, { color: selected ? theme.onPrimary : theme.text }]}>{label}</Text>
+      <View style={styles.row}>
+        <Text style={[styles.label, { color }]}>{label}</Text>
+        {Icon && <Icon color={color} size={14} strokeWidth={2.25} />}
+      </View>
     </Pressable>
   );
 }
 
-/** Small non-interactive label, e.g. an opportunity's type. */
-export function Badge({ label, tone = 'primary' }: { label: string; tone?: 'primary' | 'danger' | 'muted' }) {
+type TagProps = {
+  label: string;
+  /** solid = purple fill (type), outline = grey pill (value), soft = tinted text-only, warning = orange tint. */
+  tone?: 'solid' | 'outline' | 'soft' | 'warning';
+};
+
+/** Non-interactive pill, e.g. "Scholarship" or "R15,000 once-off". */
+export function Tag({ label, tone = 'solid' }: TagProps) {
   const theme = useTheme();
-  const colors = {
-    primary: { bg: theme.primarySoft, fg: theme.primary },
-    danger: { bg: theme.backgroundSelected, fg: theme.danger },
-    muted: { bg: theme.backgroundSelected, fg: theme.textSecondary },
+  const toneStyle = {
+    solid: { backgroundColor: theme.primary, borderColor: theme.primary, color: theme.onPrimary },
+    outline: { backgroundColor: theme.backgroundSelected, borderColor: theme.backgroundSelected, color: theme.textSecondary },
+    soft: { backgroundColor: theme.primarySoft, borderColor: theme.primarySoft, color: theme.primary },
+    warning: { backgroundColor: theme.warningSoft, borderColor: theme.warningSoft, color: theme.warning },
   }[tone];
 
-  return (
-    <Text style={[styles.badge, { backgroundColor: colors.bg, color: colors.fg }]}>{label}</Text>
-  );
+  return <Text style={[styles.tag, toneStyle]}>{label}</Text>;
 }
 
 const styles = StyleSheet.create({
   chip: {
     borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+    borderColor: 'transparent',
+    borderRadius: Radius.chip,
+    paddingHorizontal: Spacing.three - 4,
+    paddingVertical: Spacing.two + 2,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
   },
   label: {
-    fontSize: 14,
-    fontWeight: 600,
+    fontFamily: Fonts.medium,
+    fontSize: 13,
   },
-  badge: {
+  tag: {
     alignSelf: 'flex-start',
     overflow: 'hidden',
-    borderRadius: 999,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.half,
+    borderWidth: 1,
+    borderRadius: Radius.chip,
+    paddingHorizontal: Spacing.two + 2,
+    paddingVertical: Spacing.one,
+    fontFamily: Fonts.semibold,
     fontSize: 12,
-    fontWeight: 700,
   },
 });

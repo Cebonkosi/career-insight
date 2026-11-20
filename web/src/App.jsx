@@ -11,11 +11,12 @@ import ForgotPassword from '@/pages/ForgotPassword'
 import ResetPassword from '@/pages/ResetPassword'
 import Careers from '@/pages/Careers'
 import CareerDetail from '@/pages/CareerDetail'
-import Opportunities from '@/pages/Opportunities'
-import OpportunityDetail from '@/pages/OpportunityDetail'
 import Profile from '@/pages/Profile'
 import Notifications from '@/pages/Notifications'
 import Admin from '@/pages/Admin'
+import AdminOpportunities from '@/pages/AdminOpportunities'
+import AdminModeration from '@/pages/AdminModeration'
+import AdminContributors from '@/pages/AdminContributors'
 import Live from '@/pages/Live'
 import Polls from '@/pages/Polls'
 
@@ -38,8 +39,11 @@ export default function App() {
               <Route element={<AppLayout />}>
                 <Route path="/" element={<Navigate to="/admin" replace />} />
                 <Route path="/admin" element={<Admin />} />
-                <Route path="/opportunities" element={<Opportunities />} />
-                <Route path="/opportunities/:id" element={<OpportunityDetail />} />
+                <Route path="/admin/opportunities" element={<AdminOpportunities />} />
+                <Route path="/admin/moderation" element={<AdminModeration />} />
+                <Route path="/admin/contributors" element={<AdminContributors />} />
+                {/* The learner-facing opportunity pages now live in the mobile app. */}
+                <Route path="/opportunities/*" element={<Navigate to="/admin/opportunities" replace />} />
                 <Route path="/careers" element={<Careers />} />
                 <Route path="/careers/:id" element={<CareerDetail />} />
                 <Route path="/live" element={<Live />} />

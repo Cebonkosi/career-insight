@@ -1,9 +1,12 @@
+import { BadgeCheck, LogOut } from 'lucide-react-native';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
-import { TabScreen } from '@/components/tab-screen';
+import { GradientAvatar } from '@/components/brand/gradient-avatar';
+import { ScreenIntro, TabScreen } from '@/components/tab-screen';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/chip';
+import { Card } from '@/components/ui/card';
+import { Tag } from '@/components/ui/chip';
 import { CONTRIBUTOR_TYPES } from '@/constants/options';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
@@ -16,7 +19,9 @@ function DetailRow({ label, value }: { label: string; value: string | null | und
       <ThemedText type="small" themeColor="textSecondary">
         {label}
       </ThemedText>
-      <ThemedText type="small">{value}</ThemedText>
+      <ThemedText type="smallBold" style={styles.value}>
+        {value}
+      </ThemedText>
     </View>
   );
 }
@@ -27,6 +32,7 @@ export default function ProfileScreen() {
   if (!profile) return null;
 
   const roleLabel = profile.role.charAt(0).toUpperCase() + profile.role.slice(1);
+  const contributorType = CONTRIBUTOR_TYPES.find((t) => t.value === profile.contributor_type)?.label;
 
   function confirmSignOut() {
     Alert.alert('Sign out?', undefined, [
@@ -36,38 +42,39 @@ export default function ProfileScreen() {
   }
 
   return (
-    <TabScreen title="Profile">
+    <TabScreen>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={[styles.card, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-          <View style={[styles.avatar, { backgroundColor: theme.primarySoft }]}>
-            <ThemedText style={[styles.initial, { color: theme.primary }]}>
-              {profile.display_name.slice(0, 1).toUpperCase()}
-            </ThemedText>
-          </View>
-          <ThemedText type="smallBold" style={styles.name}>
-            {profile.display_name}
-          </ThemedText>
-          <View style={styles.badges}>
-            <Badge label={roleLabel} />
-            {profile.role === 'contributor' && (
-              <Badge label={profile.verified ? 'Verified' : 'Awaiting verification'} tone="muted" />
-            )}
-          </View>
-        </View>
+        <ScreenIntro title="Your profile." subtitle="What we use to match opportunities to you." />
 
-        <View style={[styles.card, styles.details, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-          <DetailRow label="Email" value={session?.user.email} />
+        <Card style={styles.identity}>
+          <GradientAvatar name={profile.display_name} imageUrl={profile.avatar_url} size={56} />
+          <View style={styles.flex}>
+            <View style={styles.nameRow}>
+              <ThemedText type="cardTitle">{profile.display_name}</ThemedText>
+              {profile.verified && <BadgeCheck color={theme.primary} size={18} />}
+            </View>
+            <ThemedText type="caption" themeColor="textSecondary">
+              {session?.user.email}
+            </ThemedText>
+            <View style={styles.tags}>
+              <Tag label={roleLabel} />
+              {profile.role === 'contributor' && (
+                <Tag label={profile.verified ? 'Verified' : 'Awaiting verification'} tone="outline" />
+              )}
+            </View>
+          </View>
+        </Card>
+
+        <Card style={styles.details}>
           <DetailRow label="Grade" value={profile.grade ? `Grade ${profile.grade}` : null} />
           <DetailRow label="School" value={profile.school} />
           <DetailRow label="Organisation" value={profile.organization_name} />
-          <DetailRow
-            label="Organisation type"
-            value={CONTRIBUTOR_TYPES.find((t) => t.value === profile.contributor_type)?.label}
-          />
+          <DetailRow label="Organisation type" value={contributorType} />
           <DetailRow label="Province" value={profile.province} />
-        </View>
+          <DetailRow label="City" value={profile.city} />
+        </Card>
 
-        <Button title="Sign out" variant="outline" onPress={confirmSignOut} />
+        <Button title="Sign out" variant="outline" icon={LogOut} onPress={confirmSignOut} />
       </ScrollView>
     </TabScreen>
   );
@@ -75,44 +82,38 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    gap: Spacing.three,
-    paddingHorizontal: Spacing.four,
+    gap: Spacing.four,
+    padding: Spacing.four,
     paddingBottom: BottomTabInset + Spacing.four,
   },
-  card: {
-    alignItems: 'center',
-    gap: Spacing.two,
-    padding: Spacing.four,
-    borderRadius: 18,
-    borderWidth: 1,
+  flex: {
+    flex: 1,
   },
-  details: {
-    alignItems: 'stretch',
+  identity: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.three,
   },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  initial: {
-    fontSize: 30,
-    lineHeight: 36,
-    fontWeight: 700,
-  },
-  name: {
-    fontSize: 20,
-    lineHeight: 26,
-  },
-  badges: {
+  nameRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.one,
+  },
+  tags: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+  },
+  details: {
+    gap: Spacing.three,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: Spacing.three,
+  },
+  value: {
+    flexShrink: 1,
+    textAlign: 'right',
   },
 });

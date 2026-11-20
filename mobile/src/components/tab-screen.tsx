@@ -1,22 +1,32 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppHeader } from '@/components/app-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 
-/** Native tabs have no header, so each tab renders its own large title. */
-export function TabScreen({ title, children }: { title: string; children: ReactNode }) {
+/** A tab's frame: the branded app header, then the screen's own scrolling content. */
+export function TabScreen({ children }: { children: ReactNode }) {
   return (
     <ThemedView style={styles.flex}>
-      <SafeAreaView style={styles.flex} edges={['top', 'left', 'right']}>
-        <View style={styles.inner}>
-          <ThemedText style={styles.title}>{title}</ThemedText>
-          {children}
-        </View>
-      </SafeAreaView>
+      <AppHeader />
+      <View style={styles.inner}>{children}</View>
     </ThemedView>
+  );
+}
+
+/** Large headline + supporting line that opens each screen, e.g. "Open doors." */
+export function ScreenIntro({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <View style={styles.intro}>
+      <ThemedText type="display">{title}</ThemedText>
+      {subtitle && (
+        <ThemedText type="default" themeColor="textSecondary">
+          {subtitle}
+        </ThemedText>
+      )}
+    </View>
   );
 }
 
@@ -30,12 +40,7 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
   },
-  title: {
-    fontSize: 32,
-    lineHeight: 40,
-    fontWeight: 700,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.two,
+  intro: {
+    gap: Spacing.one,
   },
 });

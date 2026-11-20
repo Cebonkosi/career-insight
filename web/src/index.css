@@ -5,34 +5,40 @@
 @tailwind utilities;
 
 @layer base {
+  /* Matches the Career Insight design set and mobile/src/constants/theme.ts. */
   :root {
-    --background: 210 20% 98%;
-    --foreground: 240 10% 12%;
+    --background: 225 33% 98%;
+    --foreground: 231 22% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 12%;
+    --card-foreground: 231 22% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 12%;
+    --popover-foreground: 231 22% 11%;
 
-    --primary: 251 63% 55%;
+    --primary: 250 64% 55%;
     --primary-foreground: 0 0% 100%;
+    --primary-soft: 250 80% 96%;
 
-    --secondary: 210 20% 94%;
-    --secondary-foreground: 240 10% 12%;
+    --secondary: 225 20% 95%;
+    --secondary-foreground: 231 22% 11%;
 
-    --accent: 172 66% 50%;
+    --accent: 173 80% 40%;
     --accent-foreground: 0 0% 100%;
 
-    --muted: 210 20% 94%;
-    --muted-foreground: 240 5% 45%;
+    --muted: 225 20% 95%;
+    --muted-foreground: 222 9% 41%;
 
-    --destructive: 0 72% 51%;
+    --warning: 22 86% 41%;
+    --warning-soft: 28 83% 95%;
+
+    --destructive: 358 75% 59%;
     --destructive-foreground: 0 0% 100%;
+    --destructive-soft: 0 86% 97%;
 
-    --border: 210 16% 90%;
-    --input: 210 16% 90%;
-    --ring: 251 63% 55%;
+    --border: 220 18% 91%;
+    --input: 220 18% 91%;
+    --ring: 250 64% 55%;
 
     --radius: 0.75rem;
   }
@@ -56,6 +62,10 @@
   }
   .gradient-brand {
     @apply bg-gradient-to-r from-primary to-accent;
+  }
+  /* Blue-violet → teal used for the logo and initials avatars. */
+  .brand-gradient {
+    background-image: linear-gradient(135deg, #5b43d6 0%, #3b82f6 55%, #2dd4bf 100%);
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;

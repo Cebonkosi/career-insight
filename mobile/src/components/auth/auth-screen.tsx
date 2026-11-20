@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { LogoMark } from '@/components/brand/logo-mark';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
@@ -12,7 +13,7 @@ type AuthScreenProps = {
   children: ReactNode;
 };
 
-/** Shared shell for sign-in, sign-up and onboarding: brand header + scrollable form. */
+/** Shared shell for sign-in, sign-up and onboarding: brand lockup, headline, scrollable form. */
 export function AuthScreen({ title, subtitle, children }: AuthScreenProps) {
   return (
     <ThemedView style={styles.flex}>
@@ -23,11 +24,14 @@ export function AuthScreen({ title, subtitle, children }: AuthScreenProps) {
           <ScrollView
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled">
-            <View style={styles.header}>
-              <ThemedText type="smallBold" themeColor="primary" style={styles.brand}>
-                CAREER INSIGHT
+            <View style={styles.brand}>
+              <LogoMark size={36} />
+              <ThemedText type="defaultMedium" style={styles.brandName}>
+                Career Insight
               </ThemedText>
-              <ThemedText style={styles.title}>{title}</ThemedText>
+            </View>
+            <View style={styles.header}>
+              <ThemedText type="display">{title}</ThemedText>
               <ThemedText themeColor="textSecondary">{subtitle}</ThemedText>
             </View>
             {children}
@@ -51,16 +55,17 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth / 1.6,
     alignSelf: 'center',
   },
+  brand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two + 2,
+  },
+  brandName: {
+    fontSize: 18,
+  },
   header: {
     gap: Spacing.one,
-    marginBottom: Spacing.three,
-  },
-  brand: {
-    letterSpacing: 1.5,
-  },
-  title: {
-    fontSize: 30,
-    lineHeight: 36,
-    fontWeight: 700,
+    marginTop: Spacing.three,
+    marginBottom: Spacing.two,
   },
 });

@@ -19,6 +19,7 @@ export type UserProfile = {
   role: UserRole;
   display_name: string;
   avatar_url: string | null;
+  bio: string | null;
   province: string | null;
   city: string | null;
   grade: number | null;
@@ -44,6 +45,7 @@ export type Opportunity = {
   id: string;
   title: string;
   type: OpportunityType;
+  contributor_id: string | null;
   contributor_name: string | null;
   contributor_logo: string | null;
   description: string | null;

@@ -40,7 +40,7 @@ Admins are not created through either app: create the account, then set `role = 
 2. Copy **Project Settings → API → Project URL / anon public key** into `web/.env.local` and `mobile/.env.local`.
 3. Run the migrations from the repo root — either:
    - `npx supabase link --project-ref <ref>` then `npx supabase db push`, or
-   - paste each file in `supabase/migrations/` into the SQL editor, in order, and run it. `0002` locks admin roles and adds `record_form_download()`, which the mobile app needs for form downloads.
+   - paste each file in `supabase/migrations/` into the SQL editor, in order, and run it. `0002` locks admin roles and adds `record_form_download()`, which the mobile app needs for form downloads. `0003` adds the `rejected` status and review fields the admin Opportunity review page writes, plus the download analytics the Admin overview reads.
 4. **Google OAuth**: enable the Google provider under **Authentication → Providers** and add your OAuth client ID/secret (Supabase dashboard only — not scriptable from this repo).
 5. **Email OTP for registration**: under **Authentication → Email Templates**, switch the "Confirm signup" template to the OTP variant so `supabase.auth.verifyOtp({ type: 'signup' })` works as wired up in `mobile/src/app/(auth)/sign-up.tsx`.
 6. **Career Compass edge function**:

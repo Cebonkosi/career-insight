@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { ShieldAlert } from 'lucide-react'
 import { useUserProfile } from '@/hooks/useUserProfile'
@@ -7,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { DesktopSidebar } from './DesktopSidebar'
 import { TopBar } from './TopBar'
 import { MobileNav } from './MobileNav'
-import { CreatePostDialog } from '@/components/feed/CreatePostDialog'
 
 function AdminsOnly() {
   return (
@@ -27,25 +25,20 @@ function AdminsOnly() {
 
 export function AppLayout() {
   const { profile, loading } = useUserProfile()
-  const [postDialogOpen, setPostDialogOpen] = useState(false)
 
   if (loading) return null
   if (profile?.role !== 'admin') return <AdminsOnly />
 
-  const openPostDialog = () => setPostDialogOpen(true)
-
   return (
     <div className="min-h-screen bg-background">
-      <DesktopSidebar onOpenPostDialog={openPostDialog} />
+      <DesktopSidebar profile={profile} />
       <TopBar profile={profile} />
 
-      <main className="pb-20 md:ml-64 md:pb-8">
-        <Outlet context={{ profile, openPostDialog }} />
+      <main className="pb-24 md:ml-[232px] md:pb-10">
+        <Outlet context={{ profile }} />
       </main>
 
-      <MobileNav onOpenPostDialog={openPostDialog} />
-
-      <CreatePostDialog open={postDialogOpen} onOpenChange={setPostDialogOpen} profile={profile} />
+      <MobileNav />
     </div>
   )
 }

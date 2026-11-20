@@ -1,16 +1,16 @@
 import type { ContributorType, OpportunityType, UserRole } from '@/types/models';
 
-export const OPPORTUNITY_TYPES: { value: OpportunityType; label: string }[] = [
-  { value: 'scholarship', label: 'Scholarship' },
-  { value: 'bursary', label: 'Bursary' },
-  { value: 'internship', label: 'Internship' },
+export const OPPORTUNITY_TYPES: { value: OpportunityType; label: string; plural: string }[] = [
+  { value: 'scholarship', label: 'Scholarship', plural: 'Scholarships' },
+  { value: 'bursary', label: 'Bursary', plural: 'Bursaries' },
+  { value: 'internship', label: 'Internship', plural: 'Internships' },
   // The schema spells this value with a double "n"; keep it in sync with the DB.
-  { value: 'learnnership', label: 'Learnership' },
-  { value: 'open_day', label: 'Open Day' },
-  { value: 'workshop', label: 'Workshop' },
-  { value: 'competition', label: 'Competition' },
-  { value: 'mentorship', label: 'Mentorship' },
-  { value: 'volunteer', label: 'Volunteer' },
+  { value: 'learnnership', label: 'Learnership', plural: 'Learnerships' },
+  { value: 'open_day', label: 'Open Day', plural: 'Open days' },
+  { value: 'workshop', label: 'Workshop', plural: 'Workshops' },
+  { value: 'competition', label: 'Competition', plural: 'Competitions' },
+  { value: 'mentorship', label: 'Mentorship', plural: 'Mentorships' },
+  { value: 'volunteer', label: 'Volunteer', plural: 'Volunteering' },
 ];
 
 export function opportunityTypeLabel(type: OpportunityType | null) {

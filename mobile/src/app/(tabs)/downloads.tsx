@@ -1,14 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
+import { CalendarDays, ChevronRight, FileText } from 'lucide-react-native';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import { EmptyState } from '@/components/empty-state';
-import { TabScreen } from '@/components/tab-screen';
+import { ScreenIntro, TabScreen } from '@/components/tab-screen';
 import { ThemedText } from '@/components/themed-text';
-import { Badge } from '@/components/ui/chip';
+import { Tag } from '@/components/ui/chip';
 import { opportunityTypeLabel } from '@/constants/options';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
 import { deadlineLabel, errorMessage, formatDate } from '@/lib/format';
@@ -16,7 +17,7 @@ import { queryKeys } from '@/lib/query-keys';
 import { listMyApplications } from '@/services/opportunities';
 import type { Application } from '@/types/models';
 
-function ApplicationRow({ application }: { application: Application }) {
+function ApplicationCard({ application }: { application: Application }) {
   const theme = useTheme();
   const deadline = deadlineLabel(application.deadline);
 
@@ -37,18 +38,33 @@ function ApplicationRow({ application }: { application: Application }) {
         { backgroundColor: theme.backgroundElement, borderColor: theme.border },
         pressed && styles.pressed,
       ]}>
-      <View style={styles.badges}>
-        <Badge label={opportunityTypeLabel(application.opportunity_type)} />
-        {deadline && <Badge label={deadline.text} tone={deadline.urgent ? 'danger' : 'muted'} />}
+      <View style={styles.titleRow}>
+        <FileText color={theme.primary} size={24} strokeWidth={1.5} />
+        <View style={styles.flex}>
+          <ThemedText type="smallBold" numberOfLines={2}>
+            {application.opportunity_title ?? 'Untitled opportunity'}
+          </ThemedText>
+          <ThemedText type="caption" themeColor="textMuted">
+            {[application.organization_name, `Downloaded ${formatDate(application.download_date)}`]
+              .filter(Boolean)
+              .join(' · ')}
+          </ThemedText>
+        </View>
+        <ChevronRight color={theme.textSecondary} size={20} />
       </View>
-      <ThemedText type="smallBold" style={styles.title} numberOfLines={2}>
-        {application.opportunity_title ?? 'Untitled opportunity'}
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
-        {[application.organization_name, `Downloaded ${formatDate(application.download_date)}`]
-          .filter(Boolean)
-          .join(' · ')}
-      </ThemedText>
+
+      <View style={styles.tags}>
+        <Tag label={opportunityTypeLabel(application.opportunity_type)} />
+      </View>
+
+      {deadline && (
+        <View style={[styles.deadline, { borderColor: theme.border }]}>
+          <CalendarDays color={deadline.closed ? theme.textMuted : theme.warning} size={16} />
+          <ThemedText type="small" themeColor={deadline.closed ? 'textMuted' : 'warning'}>
+            {deadline.text}
+          </ThemedText>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -64,19 +80,19 @@ export default function DownloadsScreen() {
   });
 
   return (
-    <TabScreen title="My forms">
+    <TabScreen>
       <FlatList
         data={query.data ?? []}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ApplicationRow application={item} />}
+        renderItem={({ item }) => <ApplicationCard application={item} />}
         contentContainerStyle={styles.list}
         refreshing={query.isRefetching}
         onRefresh={() => query.refetch()}
         ListHeaderComponent={
-          <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
-            Forms you download appear here so you can track deadlines. Submit completed forms through
-            the channel each opportunity lists.
-          </ThemedText>
+          <ScreenIntro
+            title="My forms."
+            subtitle="Forms you download land here, so you never lose track of a deadline."
+          />
         }
         ListEmptyComponent={
           query.isPending ? (
@@ -89,9 +105,16 @@ export default function DownloadsScreen() {
           ) : (
             <EmptyState
               title="No forms yet"
-              description="Open an opportunity and tap Download form to get started."
+              description="Open an opportunity and tap Download application form to get started."
             />
           )
+        }
+        ListFooterComponent={
+          query.data?.length ? (
+            <ThemedText type="caption" themeColor="textSecondary">
+              Submit completed forms through the channel each opportunity lists.
+            </ThemedText>
+          ) : undefined
         }
       />
     </TabScreen>
@@ -100,30 +123,37 @@ export default function DownloadsScreen() {
 
 const styles = StyleSheet.create({
   list: {
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.four,
+    gap: Spacing.three,
+    padding: Spacing.four,
     paddingBottom: BottomTabInset + Spacing.four,
   },
-  hint: {
-    marginBottom: Spacing.two,
-  },
   card: {
-    gap: Spacing.one,
-    padding: Spacing.three,
-    borderRadius: 18,
+    gap: Spacing.three - 4,
+    padding: Spacing.three + 2,
+    borderRadius: Radius.card,
     borderWidth: 1,
   },
   pressed: {
-    opacity: 0.85,
+    opacity: 0.9,
   },
-  badges: {
+  flex: {
+    flex: 1,
+  },
+  titleRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.one,
+    alignItems: 'center',
+    gap: Spacing.three - 4,
   },
-  title: {
-    fontSize: 16,
-    lineHeight: 22,
+  tags: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  deadline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingTop: Spacing.three - 4,
+    borderTopWidth: 1,
   },
   loading: {
     paddingVertical: Spacing.six,

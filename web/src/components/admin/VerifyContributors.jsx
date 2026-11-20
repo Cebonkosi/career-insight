@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { BadgeCheck } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { GradientAvatar } from '@/components/admin/GradientAvatar'
+import { CONTRIBUTOR_TYPES } from '@/lib/constants'
 import { EmptyState } from '@/components/common/EmptyState'
 import { entities } from '@/lib/entities'
 import { integrations } from '@/lib/integrations'
@@ -19,6 +20,7 @@ export function VerifyContributors() {
     try {
       await entities.UserProfile.update(contributor.id, { verified: true })
       queryClient.invalidateQueries({ queryKey: ['contributors', 'unverified'] })
+      queryClient.invalidateQueries({ queryKey: ['admin'] })
       toast.success('Contributor verified')
       if (contributor.email) {
         integrations
@@ -39,20 +41,31 @@ export function VerifyContributors() {
   }
 
   return (
-    <div className="space-y-2">
-      {contributors.map((c) => (
-        <Card key={c.id}>
-          <CardContent className="flex items-center justify-between gap-4 p-4">
-            <div>
-              <p className="font-medium">{c.organization_name || c.display_name}</p>
-              <p className="text-xs capitalize text-muted-foreground">{c.contributor_type}</p>
+    <div>
+      {contributors.map((c) => {
+        const name = c.organization_name || c.display_name
+        return (
+          <div key={c.id} className="flex items-center gap-3 border-b border-border py-4 last:border-0">
+            <GradientAvatar name={name} src={c.organization_logo} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] font-medium">{name}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {[
+                  CONTRIBUTOR_TYPES.find((t) => t.value === c.contributor_type)?.label,
+                  c.display_name !== name && c.display_name,
+                  c.email,
+                  c.website,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
             </div>
-            <Button size="sm" variant="outline" onClick={() => verify(c)}>
-              Verify
+            <Button size="sm" className="rounded-full" onClick={() => verify(c)}>
+              <BadgeCheck /> Verify
             </Button>
-          </CardContent>
-        </Card>
-      ))}
+          </div>
+        )
+      })}
     </div>
   )
 }

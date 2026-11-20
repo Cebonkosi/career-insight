@@ -1,57 +1,91 @@
-import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
+import { StyleSheet, Text, type TextProps } from 'react-native';
 
 import { Fonts, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type ThemedTextProps = TextProps & {
-  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
+  type?:
+    | 'display'
+    | 'heading'
+    | 'cardTitle'
+    | 'default'
+    | 'defaultMedium'
+    | 'small'
+    | 'smallBold'
+    | 'caption'
+    | 'eyebrow'
+    | 'link'
+    | 'code';
   themeColor?: ThemeColor;
 };
 
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
+  const defaultColor = type === 'link' ? 'primary' : 'text';
 
-  return <Text style={[{ color: theme[themeColor ?? 'text'] }, styles[type], style]} {...rest} />;
+  return <Text style={[{ color: theme[themeColor ?? defaultColor] }, styles[type], style]} {...rest} />;
 }
 
 const styles = StyleSheet.create({
-  small: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 500,
+  /** Screen headline, e.g. "Open doors." */
+  display: {
+    fontFamily: Fonts.display,
+    fontSize: 32,
+    lineHeight: 38,
+    letterSpacing: -0.5,
   },
-  smallBold: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 700,
+  /** Section heading, e.g. "Who can apply?" */
+  heading: {
+    fontFamily: Fonts.displayMedium,
+    fontSize: 20,
+    lineHeight: 26,
+  },
+  /** Card title, e.g. an opportunity name. */
+  cardTitle: {
+    fontFamily: Fonts.displayMedium,
+    fontSize: 19,
+    lineHeight: 25,
   },
   default: {
+    fontFamily: Fonts.regular,
     fontSize: 16,
     lineHeight: 24,
-    fontWeight: 500,
   },
-  title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
+  defaultMedium: {
+    fontFamily: Fonts.medium,
+    fontSize: 16,
+    lineHeight: 24,
   },
-  subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
-    fontWeight: 600,
+  small: {
+    fontFamily: Fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  smallBold: {
+    fontFamily: Fonts.semibold,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  caption: {
+    fontFamily: Fonts.regular,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  /** Small uppercase label, e.g. "STUDENT SPACE · SAMPLE DATA". */
+  eyebrow: {
+    fontFamily: Fonts.medium,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
   link: {
-    lineHeight: 30,
+    fontFamily: Fonts.semibold,
     fontSize: 14,
-  },
-  linkPrimary: {
-    lineHeight: 30,
-    fontSize: 14,
-    color: '#3c87f7',
+    lineHeight: 20,
   },
   code: {
     fontFamily: Fonts.mono,
-    fontWeight: Platform.select({ android: 700 }) ?? 500,
     fontSize: 12,
   },
 });

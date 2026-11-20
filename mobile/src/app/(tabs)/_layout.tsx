@@ -1,5 +1,7 @@
 import { NativeTabs } from 'expo-router/native-tabs';
+import { Platform } from 'react-native';
 
+import { Fonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function TabsLayout() {
@@ -7,13 +9,22 @@ export default function TabsLayout() {
 
   return (
     <NativeTabs
-      backgroundColor={theme.background}
-      indicatorColor={theme.primarySoft}
+      backgroundColor={theme.backgroundElement}
+      // Android draws the mockups' solid purple pill behind the selected icon, so
+      // that icon is white there; iOS has no pill, so it stays purple.
+      indicatorColor={theme.primary}
       tintColor={theme.primary}
-      labelStyle={{ selected: { color: theme.primary } }}>
+      iconColor={{
+        default: theme.textSecondary,
+        selected: Platform.OS === 'android' ? theme.onPrimary : theme.primary,
+      }}
+      labelStyle={{
+        default: { color: theme.textSecondary, fontFamily: Fonts.medium },
+        selected: { color: theme.primary, fontFamily: Fonts.semibold },
+      }}>
       <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Label>Opportunities</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf={{ default: 'briefcase', selected: 'briefcase.fill' }} md="work" />
+        <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'safari', selected: 'safari.fill' }} md="explore" />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="downloads">
