@@ -6,12 +6,12 @@ import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { TextField } from '@/components/ui/text-field';
-import { CONTRIBUTOR_TYPES, GRADES, PROVINCES, SIGN_UP_ROLES } from '@/constants/options';
+import { CONTRIBUTOR_TYPES, GRADES, PROVINCES, SIGN_UP_ROLES, type SignUpChoice } from '@/constants/options';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
 import { errorMessage } from '@/lib/format';
-import { createProfile, type NewProfile } from '@/services/profile';
+import { createProfile } from '@/services/profile';
 import type { ContributorType } from '@/types/models';
 
 function ChipGroup({ label, children }: { label: string; children: React.ReactNode }) {
@@ -26,7 +26,7 @@ function ChipGroup({ label, children }: { label: string; children: React.ReactNo
 export default function OnboardingScreen() {
   const theme = useTheme();
   const { session, refreshProfile, signOut } = useAuth();
-  const [role, setRole] = useState<NewProfile['role']>('student');
+  const [role, setRole] = useState<SignUpChoice>('student');
   const [displayName, setDisplayName] = useState('');
   const [grade, setGrade] = useState<number | null>(null);
   const [school, setSchool] = useState('');
@@ -37,6 +37,7 @@ export default function OnboardingScreen() {
 
   const isStudent = role === 'student';
   const isContributor = role === 'contributor';
+  const isTutor = role === 'tutor';
   const canSubmit =
     displayName.trim().length > 0 &&
     (!isStudent || grade !== null) &&
@@ -48,13 +49,14 @@ export default function OnboardingScreen() {
     try {
       await createProfile({
         user_id: session.user.id,
-        role,
+        // Tutors are contributors with the 'tutor' type; both await admin approval.
+        role: isTutor ? 'contributor' : role,
         display_name: displayName.trim(),
         province,
         grade: isStudent ? grade : null,
         school: isStudent ? school.trim() || null : null,
-        contributor_type: isContributor ? contributorType : null,
-        organization_name: isContributor ? organization.trim() : null,
+        contributor_type: isTutor ? 'tutor' : isContributor ? contributorType : null,
+        organization_name: isContributor ? organization.trim() : isTutor ? organization.trim() || null : null,
       });
       // Once the profile exists the root layout's guard swaps to the tabs.
       await refreshProfile();
@@ -114,7 +116,7 @@ export default function OnboardingScreen() {
       {isContributor && (
         <>
           <ChipGroup label="Organisation type">
-            {CONTRIBUTOR_TYPES.map((t) => (
+            {CONTRIBUTOR_TYPES.filter((t) => t.value !== 'tutor').map((t) => (
               <Chip
                 key={t.value}
                 label={t.label}
@@ -125,6 +127,21 @@ export default function OnboardingScreen() {
           </ChipGroup>
           <TextField label="Organisation name" value={organization} onChangeText={setOrganization} />
         </>
+      )}
+
+      {isTutor && (
+        <TextField
+          label="School, centre or subject area (optional)"
+          value={organization}
+          onChangeText={setOrganization}
+        />
+      )}
+
+      {(isContributor || isTutor) && (
+        <ThemedText type="caption" themeColor="textSecondary">
+          The Career Insight team reviews every {isTutor ? 'tutor' : 'contributor'} account. You can explore and post
+          straight away; categories, live sessions and analytics unlock once you&apos;re approved.
+        </ThemedText>
       )}
 
       <ChipGroup label="Province (optional)">

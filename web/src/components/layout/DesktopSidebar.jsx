@@ -1,32 +1,36 @@
 import { NavLink } from 'react-router-dom'
 import {
+  BarChart3,
   Briefcase,
-  CircleCheck,
   Compass,
+  History,
   LayoutGrid,
   Lock,
   LogOut,
   Radio,
   ShieldCheck,
   Sparkles,
+  Users,
   Vote,
 } from 'lucide-react'
 import { GradientAvatar } from '@/components/admin/GradientAvatar'
 import { auth } from '@/lib/auth'
 import { cn, createPageUrl } from '@/lib/utils'
 
-// Order and labels follow the Admin overview design. "Users & roles", "Forms &
-// downloads" and "Analytics" from the design are not built yet, so they are left out.
+// Order and labels follow the Admin overview design. The design's "Forms &
+// downloads" lives inside Opportunities (forms) and Analytics (downloads).
 export const ADMIN_NAV = [
   { page: 'Admin', icon: LayoutGrid, label: 'Overview', end: true },
   { page: 'AdminOpportunities', icon: Briefcase, label: 'Opportunities' },
   { page: 'AdminModeration', icon: ShieldCheck, label: 'Content moderation' },
-  { page: 'AdminContributors', icon: CircleCheck, label: 'Contributors' },
+  { page: 'AdminUsers', icon: Users, label: 'Users & roles' },
+  { page: 'AdminLive', icon: Radio, label: 'Live sessions' },
+  { page: 'AdminAnalytics', icon: BarChart3, label: 'Analytics' },
+  { page: 'AdminAudit', icon: History, label: 'Audit log' },
 ]
 
 const PLATFORM_NAV = [
   { page: 'Careers', icon: Compass, label: 'Careers' },
-  { page: 'Live', icon: Radio, label: 'Live sessions' },
   { page: 'Polls', icon: Vote, label: 'Polls' },
 ]
 

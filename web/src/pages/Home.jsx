@@ -1,5 +1,0 @@
-import { FeedSection } from '@/components/feed/FeedSection'
-
-export default function Home() {
-  return <FeedSection />
-}

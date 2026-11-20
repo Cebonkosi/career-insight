@@ -1,136 +1,128 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { ChevronDown, Search, SlidersHorizontal } from 'lucide-react-native';
-import { useDeferredValue, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { router } from 'expo-router';
+import { ArrowRight } from 'lucide-react-native';
+import { useState } from 'react';
+import { FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { ApprovalBanner } from '@/components/approval-banner';
 import { EmptyState } from '@/components/empty-state';
-import { OpportunityCard } from '@/components/opportunities/opportunity-card';
+import { OpportunityCoverCard } from '@/components/opportunities/opportunity-cover-card';
+import { PostCard } from '@/components/posts/post-card';
+import { ProfileTile } from '@/components/profiles/profile-tile';
+import { QueryState } from '@/components/query-state';
 import { ScreenIntro, TabScreen } from '@/components/tab-screen';
 import { ThemedText } from '@/components/themed-text';
-import { Card } from '@/components/ui/card';
-import { Chip } from '@/components/ui/chip';
-import { OPPORTUNITY_TYPES } from '@/constants/options';
-import { BottomTabInset, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Segmented } from '@/components/ui/segmented';
+import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
-import { useSavedOpportunities } from '@/hooks/use-saved-opportunities';
+import { useFollowing } from '@/hooks/use-following';
+import { usePostLikes } from '@/hooks/use-post-likes';
+import { useRole } from '@/hooks/use-role';
 import { useTheme } from '@/hooks/use-theme';
-import { errorMessage } from '@/lib/format';
 import { queryKeys } from '@/lib/query-keys';
-import {
-  OPPORTUNITIES_PAGE_SIZE,
-  listOpportunities,
-  type OpportunityFilters,
-  type OpportunitySort,
-} from '@/services/opportunities';
-import type { OpportunityType } from '@/types/models';
+import { listLatestOpportunities } from '@/services/opportunities';
+import { POSTS_PAGE_SIZE, listPosts, type FeedScope } from '@/services/posts';
+import { searchProfiles } from '@/services/profile';
 
-const SORT_LABELS: Record<OpportunitySort, string> = {
-  closing_soon: 'Closing soon',
-  newest: 'Newest',
-};
+type FeedTab = 'for_you' | 'following';
 
-/** "Opportunities browse" mockup. */
-export default function ExploreScreen() {
+const FEED_TABS: { value: FeedTab; label: string }[] = [
+  { value: 'for_you', label: 'For you' },
+  { value: 'following', label: 'Following' },
+];
+
+function SectionHeader({ title, actionLabel, onAction }: { title: string; actionLabel?: string; onAction?: () => void }) {
   const theme = useTheme();
-  const { profile } = useAuth();
-  const { savedIds, isSaved, toggleSaved } = useSavedOpportunities();
+  return (
+    <View style={styles.sectionHeader}>
+      <ThemedText type="heading">{title}</ThemedText>
+      {actionLabel && (
+        <Pressable accessibilityRole="link" onPress={onAction} hitSlop={8} style={styles.inline}>
+          <ThemedText type="link">{actionLabel}</ThemedText>
+          <ArrowRight color={theme.primary} size={14} />
+        </Pressable>
+      )}
+    </View>
+  );
+}
 
-  const [search, setSearch] = useState('');
-  const [type, setType] = useState<OpportunityType | null>(null);
-  const [showFilters, setShowFilters] = useState(true);
-  const [myGrade, setMyGrade] = useState(Boolean(profile?.grade));
-  const [myProvince, setMyProvince] = useState(false);
-  const [savedOnly, setSavedOnly] = useState(false);
-  const [sort, setSort] = useState<OpportunitySort>('closing_soon');
+function greeting(role: string | undefined, name: string) {
+  const first = name.split(' ')[0];
+  if (role === 'parent') return { title: 'Support their next step.', subtitle: `Welcome, ${first}. Explore possibilities together.` };
+  if (role === 'contributor' || role === 'admin') {
+    return { title: 'Make an impact.', subtitle: `Hi ${first}. Your stories can help a learner find their next step.` };
+  }
+  return { title: 'Your future starts here.', subtitle: `Hi ${first}. Let's turn your curiosity into a plan.` };
+}
 
-  const filters: OpportunityFilters = {
-    // Defer the search term so typing stays responsive while the list refetches.
-    search: useDeferredValue(search),
-    type,
-    grade: myGrade ? (profile?.grade ?? null) : null,
-    province: myProvince ? (profile?.province ?? null) : null,
-    ids: savedOnly ? savedIds : null,
-    sort,
-  };
+/** Home: opportunity and people rows (UAT NAV-007, OPP-010) above the community feed. */
+export default function HomeScreen() {
+  const { profile, session } = useAuth();
+  const { isLearner } = useRole();
+  const [tab, setTab] = useState<FeedTab>('for_you');
+  const { followingIds } = useFollowing();
 
-  const query = useInfiniteQuery({
-    queryKey: queryKeys.opportunities(filters),
-    queryFn: ({ pageParam }) => listOpportunities(filters, pageParam),
+  const opportunities = useQuery({ queryKey: queryKeys.latestOpportunities, queryFn: () => listLatestOpportunities() });
+  const people = useQuery({ queryKey: queryKeys.profileSearch(''), queryFn: () => searchProfiles('', 12) });
+
+  const scope: FeedScope = tab === 'following' ? { kind: 'following', authorIds: followingIds } : { kind: 'all' };
+  const feed = useInfiniteQuery({
+    queryKey: queryKeys.feed(tab === 'following' ? `following:${followingIds.join(',')}` : 'all'),
+    queryFn: ({ pageParam }) => listPosts(scope, pageParam, session?.user.id),
     initialPageParam: 0,
-    getNextPageParam: (lastPage, _pages, lastPageParam) =>
-      lastPage.rows.length === OPPORTUNITIES_PAGE_SIZE ? lastPageParam + 1 : undefined,
+    getNextPageParam: (last, _pages, lastParam) => (last.length === POSTS_PAGE_SIZE ? lastParam + 1 : undefined),
   });
+  const posts = feed.data?.pages.flat() ?? [];
+  const { isLiked, toggleLike } = usePostLikes(posts);
 
-  const opportunities = query.data?.pages.flatMap((page) => page.rows) ?? [];
-  const total = query.data?.pages[0]?.count ?? 0;
-  const filtered = Boolean(search || type || savedOnly || (myGrade && profile?.grade) || myProvince);
+  const intro = greeting(profile?.role, profile?.display_name ?? '');
+  const otherPeople = (people.data ?? []).filter((card) => card.user_id !== session?.user.id);
 
   const header = (
     <View style={styles.header}>
-      <ScreenIntro title="Open doors." subtitle="Funding and real-world experience, all in one place." />
+      <ScreenIntro title={intro.title} subtitle={intro.subtitle} />
+      <ApprovalBanner />
 
-      <View style={[styles.search, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-        <Search color={theme.textSecondary} size={20} />
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search opportunities or organisations"
-          placeholderTextColor={theme.textMuted}
-          returnKeyType="search"
-          style={[styles.searchInput, { color: theme.text }]}
+      <View style={styles.section}>
+        <SectionHeader
+          title={isLearner ? "Don't miss these" : 'Latest opportunities'}
+          actionLabel={isLearner ? 'Explore' : undefined}
+          onAction={() => router.navigate('/explore')}
         />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={showFilters ? 'Hide filters' : 'Show filters'}
-          hitSlop={10}
-          onPress={() => setShowFilters((v) => !v)}>
-          <SlidersHorizontal color={showFilters ? theme.primary : theme.text} size={20} />
-        </Pressable>
+        {opportunities.data?.length ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+            {opportunities.data.map((opp) => (
+              <OpportunityCoverCard key={opp.id} opportunity={opp} />
+            ))}
+          </ScrollView>
+        ) : opportunities.isPending || opportunities.isError ? (
+          <QueryState
+            isPending={opportunities.isPending}
+            error={opportunities.error}
+            onRetry={() => opportunities.refetch()}
+            label="opportunities"
+          />
+        ) : (
+          <ThemedText type="small" themeColor="textSecondary">
+            New opportunities will appear here as soon as they&apos;re published.
+          </ThemedText>
+        )}
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-        <Chip label="All" selected={type === null} onPress={() => setType(null)} />
-        {OPPORTUNITY_TYPES.map((t) => (
-          <Chip
-            key={t.value}
-            label={t.plural}
-            selected={type === t.value}
-            onPress={() => setType(type === t.value ? null : t.value)}
-          />
-        ))}
-      </ScrollView>
-
-      {showFilters && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-          {profile?.grade && (
-            <Chip label={`Grade ${profile.grade}`} selected={myGrade} onPress={() => setMyGrade((v) => !v)} />
-          )}
-          {profile?.province && (
-            <Chip label={profile.province} selected={myProvince} onPress={() => setMyProvince((v) => !v)} />
-          )}
-          <Chip label={`Saved (${savedIds.length})`} selected={savedOnly} onPress={() => setSavedOnly((v) => !v)} />
-        </ScrollView>
+      {otherPeople.length > 0 && (
+        <View style={styles.section}>
+          <SectionHeader title="People to follow" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+            {otherPeople.map((card) => (
+              <ProfileTile key={card.user_id} card={card} />
+            ))}
+          </ScrollView>
+        </View>
       )}
 
-      <Card style={styles.banner}>
-        <ThemedText type="smallBold">A head start for your next chapter</ThemedText>
-        <ThemedText type="small">
-          Some bursaries open well before Grade 12. Save them now and get ready before applications open.
-        </ThemedText>
-      </Card>
-
-      <View style={styles.countRow}>
-        <ThemedText type="smallBold">
-          {query.isPending ? 'Loading…' : `${total} ${total === 1 ? 'opportunity' : 'opportunities'}`}
-        </ThemedText>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Sort: ${SORT_LABELS[sort]}`}
-          style={styles.sort}
-          onPress={() => setSort(sort === 'closing_soon' ? 'newest' : 'closing_soon')}>
-          <ThemedText type="small">{SORT_LABELS[sort]}</ThemedText>
-          <ChevronDown color={theme.text} size={14} />
-        </Pressable>
+      <View style={styles.section}>
+        <SectionHeader title="From your community" />
+        <Segmented options={FEED_TABS} value={tab} onChange={setTab} />
       </View>
     </View>
   );
@@ -138,44 +130,36 @@ export default function ExploreScreen() {
   return (
     <TabScreen>
       <FlatList
-        data={opportunities}
-        keyExtractor={(item) => item.id}
+        data={posts}
+        keyExtractor={(post) => post.id}
         renderItem={({ item }) => (
-          <OpportunityCard opportunity={item} saved={isSaved(item.id)} onToggleSaved={() => toggleSaved(item)} />
+          <PostCard post={item} liked={isLiked(item.id)} onToggleLike={() => toggleLike(item.id)} />
         )}
         ListHeaderComponent={header}
         contentContainerStyle={styles.list}
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
-        refreshing={query.isRefetching && !query.isFetchingNextPage}
-        onRefresh={() => query.refetch()}
+        refreshing={feed.isRefetching && !feed.isFetchingNextPage}
+        onRefresh={() => {
+          feed.refetch();
+          opportunities.refetch();
+          people.refetch();
+        }}
         onEndReachedThreshold={0.5}
         onEndReached={() => {
-          if (query.hasNextPage && !query.isFetchingNextPage) query.fetchNextPage();
+          if (feed.hasNextPage && !feed.isFetchingNextPage) feed.fetchNextPage();
         }}
         ListEmptyComponent={
-          query.isPending ? (
-            <ActivityIndicator style={styles.loading} color={theme.primary} />
-          ) : query.isError ? (
+          feed.isPending || feed.isError ? (
+            <QueryState isPending={feed.isPending} error={feed.error} onRetry={() => feed.refetch()} label="posts" />
+          ) : tab === 'following' ? (
             <EmptyState
-              title="Couldn't load opportunities"
-              description={errorMessage(query.error, 'Pull down to try again.')}
+              title={followingIds.length ? 'Nothing new from people you follow' : "You're not following anyone yet"}
+              description="Follow contributors and tutors from People to follow or Explore → People."
             />
           ) : (
-            <EmptyState
-              title="No opportunities found"
-              description={filtered ? 'Try a different search or filter.' : 'Check back soon.'}
-            />
+            <EmptyState title="No posts yet" description="Be the first to share something with the community." />
           )
         }
-        ListFooterComponent={
-          <View style={styles.footer}>
-            {query.isFetchingNextPage && <ActivityIndicator color={theme.primary} />}
-            <ThemedText type="caption" themeColor="textSecondary">
-              Always check the provider&apos;s official requirements before applying.
-            </ThemedText>
-          </View>
-        }
+        ListFooterComponent={feed.isFetchingNextPage ? <QueryState isPending label="more posts" /> : undefined}
       />
     </TabScreen>
   );
@@ -188,48 +172,24 @@ const styles = StyleSheet.create({
     paddingBottom: BottomTabInset + Spacing.four,
   },
   header: {
-    gap: Spacing.three,
+    gap: Spacing.four,
     marginBottom: Spacing.one,
   },
-  search: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two + 2,
-    minHeight: 50,
-    borderWidth: 1,
-    borderRadius: Radius.control,
-    paddingHorizontal: Spacing.three,
-    marginTop: Spacing.two,
+  section: {
+    gap: Spacing.three - 4,
   },
-  searchInput: {
-    flex: 1,
-    fontFamily: Fonts.regular,
-    fontSize: 15,
-    paddingVertical: Spacing.two,
-  },
-  chips: {
-    gap: Spacing.one,
-  },
-  banner: {
-    gap: Spacing.one,
-    paddingVertical: Spacing.three - 2,
-  },
-  countRow: {
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: Spacing.two,
   },
-  sort: {
+  inline: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.one,
   },
-  loading: {
-    paddingVertical: Spacing.six,
-  },
-  footer: {
-    gap: Spacing.three,
-    paddingTop: Spacing.two,
+  row: {
+    gap: Spacing.three - 4,
+    paddingRight: Spacing.four,
   },
 });

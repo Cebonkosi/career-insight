@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { Application, Opportunity, OpportunityType, UserProfile } from '@/types/models';
+import type { Opportunity, OpportunityType, ProfileCard, SavedDownload } from '@/types/models';
 
 export const OPPORTUNITIES_PAGE_SIZE = 20;
 
@@ -62,35 +62,61 @@ export async function getOpportunity(id: string) {
   return data;
 }
 
-/** The posting contributor's profile, for the "Verified contributor" line. */
+/** The linked provider's public profile card, for the "Verified contributor" line. */
 export async function getContributorProfile(contributorId: string) {
   const { data, error } = await supabase
-    .from('user_profiles')
+    .from('profile_cards')
     .select('*')
     .eq('user_id', contributorId)
-    .maybeSingle<UserProfile>();
+    .maybeSingle<ProfileCard>();
   if (error) throw error;
   return data;
 }
 
-/** Logs the download against the signed-in user and returns the form URL to open. */
+/** Newest published opportunities for the Home row. */
+export async function listLatestOpportunities(limit = 10) {
+  const { data, error } = await supabase
+    .from('opportunities')
+    .select('*')
+    .eq('status', 'active')
+    .order('featured', { ascending: false })
+    .order('published_at', { ascending: false, nullsFirst: false })
+    .limit(limit)
+    .returns<Opportunity[]>();
+  if (error) throw error;
+  return data;
+}
+
+/** Counts a detail-page view for analytics. Failures are ignored: a view is never worth an error. */
+export async function recordOpportunityView(opportunityId: string) {
+  await supabase.rpc('record_opportunity_view', { p_opportunity_id: opportunityId });
+}
+
+/**
+ * Records a completed download. Call this only after the file is saved on the
+ * device, so failed downloads are never counted (UAT DL-004, ANL-002).
+ */
 export async function recordFormDownload(opportunityId: string) {
-  const { data, error } = await supabase.rpc('record_form_download', {
+  const { error } = await supabase.rpc('record_form_download', {
     p_opportunity_id: opportunityId,
   });
   if (error) throw error;
-  return data as string;
 }
 
-export async function listMyApplications(userId: string) {
+export async function listSavedDownloads(userId: string) {
   const { data, error } = await supabase
     .from('applications')
-    .select('*')
+    .select('id, opportunity_id, opportunity_title, opportunity_type, organization_name, download_date, last_downloaded_at, times_downloaded, deadline, form_url')
     .eq('user_id', userId)
-    .order('download_date', { ascending: false })
-    .returns<Application[]>();
+    .order('last_downloaded_at', { ascending: false, nullsFirst: false })
+    .returns<SavedDownload[]>();
   if (error) throw error;
   return data;
+}
+
+export async function removeSavedDownload(id: string) {
+  const { error } = await supabase.from('applications').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function listSavedOpportunityIds(userId: string) {

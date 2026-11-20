@@ -1,80 +1,103 @@
-import { BadgeCheck, LogOut } from 'lucide-react-native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { router } from 'expo-router';
+import { LogOut, Pencil } from 'lucide-react-native';
+import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
-import { GradientAvatar } from '@/components/brand/gradient-avatar';
-import { ScreenIntro, TabScreen } from '@/components/tab-screen';
+import { ApprovalBanner } from '@/components/approval-banner';
+import { EmptyState } from '@/components/empty-state';
+import { SavedDownloadRow } from '@/components/opportunities/saved-download-row';
+import { AuthorPosts } from '@/components/posts/author-posts';
+import { ProfileHeader } from '@/components/profiles/profile-header';
+import { QueryState } from '@/components/query-state';
+import { TabScreen } from '@/components/tab-screen';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Tag } from '@/components/ui/chip';
-import { CONTRIBUTOR_TYPES } from '@/constants/options';
+import { Segmented } from '@/components/ui/segmented';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
-import { useTheme } from '@/hooks/use-theme';
+import { useRole } from '@/hooks/use-role';
+import { errorMessage } from '@/lib/format';
+import { queryKeys } from '@/lib/query-keys';
+import { listSavedDownloads, removeSavedDownload } from '@/services/opportunities';
 
-function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
-  if (!value) return null;
+type ProfileTab = 'posts' | 'downloads';
+
+function SavedDownloads({ userId }: { userId: string }) {
+  const queryClient = useQueryClient();
+  const query = useQuery({ queryKey: queryKeys.savedDownloads(userId), queryFn: () => listSavedDownloads(userId) });
+  const remove = useMutation({
+    mutationFn: removeSavedDownload,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.savedDownloads(userId) }),
+    onError: (err) => Alert.alert('Could not remove it', errorMessage(err, 'Please try again.')),
+  });
+
+  if (!query.data?.length) {
+    return query.isPending || query.isError ? (
+      <QueryState isPending={query.isPending} error={query.error} onRetry={() => query.refetch()} label="Saved Downloads" />
+    ) : (
+      <EmptyState
+        title="No downloads yet"
+        description="Open an opportunity and tap Download application form. It will appear here so you can find it again."
+      />
+    );
+  }
+
   return (
-    <View style={styles.row}>
-      <ThemedText type="small" themeColor="textSecondary">
-        {label}
+    <View style={styles.list}>
+      <ThemedText type="caption" themeColor="textSecondary">
+        Forms you&apos;ve downloaded. Complete them and submit them through each provider&apos;s own channel —
+        Career Insight doesn&apos;t submit applications for you.
       </ThemedText>
-      <ThemedText type="smallBold" style={styles.value}>
-        {value}
-      </ThemedText>
+      {query.data.map((item) => (
+        <SavedDownloadRow key={item.id} item={item} onRemove={() => remove.mutate(item.id)} />
+      ))}
     </View>
   );
 }
 
+/** Profile tab: identity, own post history, and (learners only) Saved Downloads (UAT DL-005, POST-009). */
 export default function ProfileScreen() {
-  const theme = useTheme();
   const { session, profile, signOut } = useAuth();
-  if (!profile) return null;
-
-  const roleLabel = profile.role.charAt(0).toUpperCase() + profile.role.slice(1);
-  const contributorType = CONTRIBUTOR_TYPES.find((t) => t.value === profile.contributor_type)?.label;
+  const { hasSavedDownloads } = useRole();
+  const [tab, setTab] = useState<ProfileTab>(hasSavedDownloads ? 'downloads' : 'posts');
+  if (!profile || !session) return null;
 
   function confirmSignOut() {
-    Alert.alert('Sign out?', undefined, [
+    Alert.alert('Sign out?', 'Forms and recordings saved on this device stay available offline.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign out', style: 'destructive', onPress: signOut },
     ]);
   }
 
+  const tabs: { value: ProfileTab; label: string }[] = hasSavedDownloads
+    ? [
+        { value: 'downloads', label: 'Saved Downloads' },
+        { value: 'posts', label: 'My posts' },
+      ]
+    : [{ value: 'posts', label: 'My posts' }];
+
   return (
     <TabScreen>
       <ScrollView contentContainerStyle={styles.content}>
-        <ScreenIntro title="Your profile." subtitle="What we use to match opportunities to you." />
-
-        <Card style={styles.identity}>
-          <GradientAvatar name={profile.display_name} imageUrl={profile.avatar_url} size={56} />
-          <View style={styles.flex}>
-            <View style={styles.nameRow}>
-              <ThemedText type="cardTitle">{profile.display_name}</ThemedText>
-              {profile.verified && <BadgeCheck color={theme.primary} size={18} />}
+        <ProfileHeader
+          profile={profile}
+          actions={
+            <View style={styles.actions}>
+              <Button title="Edit profile" variant="outline" icon={Pencil} style={styles.flex} onPress={() => router.push('/profile/edit')} />
+              <Button title="Sign out" variant="ghost" icon={LogOut} onPress={confirmSignOut} />
             </View>
-            <ThemedText type="caption" themeColor="textSecondary">
-              {session?.user.email}
-            </ThemedText>
-            <View style={styles.tags}>
-              <Tag label={roleLabel} />
-              {profile.role === 'contributor' && (
-                <Tag label={profile.verified ? 'Verified' : 'Awaiting verification'} tone="outline" />
-              )}
-            </View>
-          </View>
-        </Card>
+          }
+        />
+        <ApprovalBanner />
 
-        <Card style={styles.details}>
-          <DetailRow label="Grade" value={profile.grade ? `Grade ${profile.grade}` : null} />
-          <DetailRow label="School" value={profile.school} />
-          <DetailRow label="Organisation" value={profile.organization_name} />
-          <DetailRow label="Organisation type" value={contributorType} />
-          <DetailRow label="Province" value={profile.province} />
-          <DetailRow label="City" value={profile.city} />
-        </Card>
+        {tabs.length > 1 && <Segmented options={tabs} value={tab} onChange={setTab} />}
 
-        <Button title="Sign out" variant="outline" icon={LogOut} onPress={confirmSignOut} />
+        {tab === 'downloads' && hasSavedDownloads ? (
+          <SavedDownloads userId={session.user.id} />
+        ) : (
+          <AuthorPosts authorId={session.user.id} emptyText="Posts you share appear here." />
+        )}
       </ScrollView>
     </TabScreen>
   );
@@ -89,31 +112,12 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  identity: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-  },
-  tags: {
+  actions: {
     flexDirection: 'row',
     gap: Spacing.two,
-    marginTop: Spacing.two,
+    marginTop: Spacing.one,
   },
-  details: {
+  list: {
     gap: Spacing.three,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: Spacing.three,
-  },
-  value: {
-    flexShrink: 1,
-    textAlign: 'right',
   },
 });

@@ -17,7 +17,7 @@ import { GradientAvatar } from '@/components/admin/GradientAvatar'
 import {
   fetchFlaggedPosts,
   fetchOverviewStats,
-  fetchPendingOpportunities,
+  fetchDraftOpportunities,
   fetchTopForms,
   fetchUnverifiedContributors,
   fetchWeeklyDownloads,
@@ -102,17 +102,18 @@ function DownloadsChart({ weeks }) {
 /** "Admin overview" design. */
 export default function Admin() {
   const stats = useQuery({ queryKey: ['admin', 'overview-stats'], queryFn: fetchOverviewStats })
-  const pending = useQuery({ queryKey: ['admin', 'pending-opportunities'], queryFn: () => fetchPendingOpportunities() })
+  const drafts = useQuery({ queryKey: ['admin', 'draft-opportunities'], queryFn: () => fetchDraftOpportunities() })
   const contributors = useQuery({
     queryKey: ['admin', 'unverified-contributors'],
     queryFn: () => fetchUnverifiedContributors(),
   })
   const weekly = useQuery({ queryKey: ['admin', 'weekly-downloads'], queryFn: () => fetchWeeklyDownloads(8) })
   const topForms = useQuery({ queryKey: ['admin', 'top-forms'], queryFn: () => fetchTopForms() })
-  const flagged = useQuery({ queryKey: ['admin', 'flagged-posts'], queryFn: () => fetchFlaggedPosts() })
+  const flagged = useQuery({ queryKey: ['admin', 'flagged-posts'], queryFn: () => fetchFlaggedPosts(6) })
 
-  const pendingTotal = pending.data?.total ?? 0
+  const draftTotal = drafts.data?.total ?? 0
   const awaitingTotal = contributors.data?.total ?? 0
+  const reportedTotal = flagged.data?.total ?? 0
   const weeks = weekly.data ?? []
   const last30 = stats.data?.downloads
 
@@ -123,19 +124,18 @@ export default function Admin() {
         description="The queues, people and resources that need your attention today."
       />
 
-      {(pendingTotal > 0 || awaitingTotal > 0) && (
+      {(awaitingTotal > 0 || reportedTotal > 0) && (
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-primary px-6 py-6 text-primary-foreground">
           <p className="flex items-center gap-3 text-sm font-semibold">
             <ShieldCheck className="h-5 w-5 shrink-0" strokeWidth={1.75} />
-            Keep opportunity access safe: {pendingTotal} submission{pendingTotal === 1 ? '' : 's'} and{' '}
-            {awaitingTotal} contributor profile{awaitingTotal === 1 ? '' : 's'}{' '}
-            {pendingTotal + awaitingTotal === 1 ? 'is' : 'are'} awaiting a decision.
+            Keep Career Insight safe: {awaitingTotal} contributor account{awaitingTotal === 1 ? '' : 's'} awaiting
+            approval and {reportedTotal} reported post{reportedTotal === 1 ? '' : 's'}.
           </p>
           <Link
-            to={`${createPageUrl('AdminOpportunities')}?status=pending_review`}
+            to={reportedTotal > 0 ? createPageUrl('AdminModeration') : `${createPageUrl('AdminUsers')}?role=pending`}
             className="flex items-center gap-2 text-sm font-semibold hover:underline"
           >
-            <ArrowRight className="h-4 w-4" /> Open review queue
+            <ArrowRight className="h-4 w-4" /> {reportedTotal > 0 ? 'Review reports' : 'Review accounts'}
           </Link>
         </div>
       )}
@@ -172,37 +172,37 @@ export default function Admin() {
       </div>
       {stats.isError && (
         <p className="text-sm text-destructive">
-          Could not load stats: {stats.error.message}. Has migration 0003 been applied?
+          Could not load stats: {stats.error.message}. Have migrations 0003 and 0004 been applied?
         </p>
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel>
           <PanelHeader
-            title="Opportunity approvals"
-            linkTo={`${createPageUrl('AdminOpportunities')}?status=pending_review`}
-            linkLabel={`All ${pendingTotal}`}
+            title="Drafts to publish"
+            linkTo={`${createPageUrl('AdminOpportunities')}?status=draft`}
+            linkLabel={`All ${draftTotal}`}
           />
           <div className="mt-2">
-            {pending.data?.rows.map((opp) => (
+            {drafts.data?.rows.map((opp) => (
               <QueueRow
                 key={opp.id}
-                to={`${createPageUrl('AdminOpportunities')}?id=${opp.id}`}
+                to={`${createPageUrl('AdminOpportunities')}?status=draft&id=${opp.id}`}
                 name={opp.contributor_name || opp.title}
                 title={opp.title}
-                subtitle={[opp.contributor_name, typeLabel(opp.type, OPPORTUNITY_TYPES), formatShortDate(opp.created_at)]
+                subtitle={[opp.contributor_name, typeLabel(opp.type, OPPORTUNITY_TYPES), `Edited ${formatShortDate(opp.updated_at)}`]
                   .filter(Boolean)
                   .join(' · ')}
-                pill={<Pill>Pending</Pill>}
+                pill={<Pill>Draft</Pill>}
               />
             ))}
-            {pending.data && !pending.data.rows.length && <QueueEmpty>No submissions waiting for review.</QueueEmpty>}
+            {drafts.data && !drafts.data.rows.length && <QueueEmpty>No drafts waiting. Everything is published.</QueueEmpty>}
           </div>
           <Link
             to={createPageUrl('AdminOpportunities')}
             className="mt-2 flex h-12 items-center justify-center gap-2 rounded-xl border border-border text-sm font-semibold text-primary hover:bg-secondary"
           >
-            <Briefcase className="h-4 w-4" strokeWidth={1.75} /> Review opportunities
+            <Briefcase className="h-4 w-4" strokeWidth={1.75} /> Manage opportunities
           </Link>
         </Panel>
 
@@ -322,7 +322,7 @@ export default function Admin() {
                         {[post.author_name, post.post_type ?? 'post'].filter(Boolean).join(' · ')}
                       </p>
                     </td>
-                    <td className="py-2.5 pr-4 text-sm">Flagged for review</td>
+                    <td className="py-2.5 pr-4 text-sm">Reported by a user</td>
                     <td className="py-2.5 pr-4 text-sm text-muted-foreground">
                       {new Date(post.updated_at).toLocaleString('en-GB', {
                         day: 'numeric',

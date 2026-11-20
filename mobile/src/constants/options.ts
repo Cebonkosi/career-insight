@@ -1,4 +1,4 @@
-import type { ContributorType, OpportunityType, UserRole } from '@/types/models';
+import type { ContributorType, OpportunityType, PostType } from '@/types/models';
 
 export const OPPORTUNITY_TYPES: { value: OpportunityType; label: string; plural: string }[] = [
   { value: 'scholarship', label: 'Scholarship', plural: 'Scholarships' },
@@ -17,13 +17,34 @@ export function opportunityTypeLabel(type: OpportunityType | null) {
   return OPPORTUNITY_TYPES.find((t) => t.value === type)?.label ?? 'Opportunity';
 }
 
-// Admins are created from the Supabase dashboard, not the app.
-export const SIGN_UP_ROLES: { value: Exclude<UserRole, 'admin'>; label: string; hint: string }[] = [
+// Admins are created by another admin, not through sign-up. A tutor is stored
+// as a contributor with contributor_type 'tutor' (UAT AUTH-004).
+export type SignUpChoice = 'student' | 'parent' | 'contributor' | 'tutor';
+
+export const SIGN_UP_ROLES: { value: SignUpChoice; label: string; hint: string }[] = [
   { value: 'student', label: 'Student', hint: 'Grade 8–12 learner' },
   { value: 'parent', label: 'Parent', hint: 'Supporting a learner' },
-  { value: 'contributor', label: 'Contributor', hint: 'Institution, company or tutor' },
+  { value: 'contributor', label: 'Contributor', hint: 'Institution, company or professional · needs approval' },
+  { value: 'tutor', label: 'Tutor', hint: 'Educational content creator · needs approval' },
 ];
 
+export const POST_TYPES: { value: PostType; label: string }[] = [
+  { value: 'article', label: 'Article' },
+  { value: 'tip', label: 'Tip' },
+  { value: 'story', label: 'Story' },
+  { value: 'announcement', label: 'Announcement' },
+  { value: 'question', label: 'Question' },
+];
+
+export function postTypeLabel(type: PostType | null) {
+  return POST_TYPES.find((t) => t.value === type)?.label ?? 'Community';
+}
+
+export function contributorTypeLabel(type: ContributorType | null) {
+  return CONTRIBUTOR_TYPES.find((t) => t.value === type)?.label ?? 'Contributor';
+}
+
+/** Organisation types a contributor can pick (tutors are chosen as their own role). */
 export const CONTRIBUTOR_TYPES: { value: ContributorType; label: string }[] = [
   { value: 'university', label: 'University' },
   { value: 'college', label: 'College' },

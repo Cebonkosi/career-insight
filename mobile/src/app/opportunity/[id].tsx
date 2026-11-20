@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -10,14 +10,18 @@ import {
   Download,
   ExternalLink,
   FileText,
+  FolderOpen,
+  Info,
 } from 'lucide-react-native';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/app-header';
 import { GradientAvatar } from '@/components/brand/gradient-avatar';
 import { EmptyState } from '@/components/empty-state';
 import { opportunityPlace } from '@/components/opportunities/opportunity-card';
+import { QueryState } from '@/components/query-state';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Button } from '@/components/ui/button';
@@ -25,7 +29,8 @@ import { Card } from '@/components/ui/card';
 import { Tag } from '@/components/ui/chip';
 import { opportunityTypeLabel } from '@/constants/options';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
-import { useAuth } from '@/hooks/use-auth';
+import { useFormDownload } from '@/hooks/use-form-download';
+import { useRole } from '@/hooks/use-role';
 import { useSavedOpportunities } from '@/hooks/use-saved-opportunities';
 import { useTheme } from '@/hooks/use-theme';
 import {
@@ -37,7 +42,20 @@ import {
   requirementLines,
 } from '@/lib/format';
 import { queryKeys } from '@/lib/query-keys';
-import { getContributorProfile, getOpportunity, recordFormDownload } from '@/services/opportunities';
+import { getContributorProfile, getOpportunity, recordOpportunityView } from '@/services/opportunities';
+
+/** Only open http(s) links from listings, never other schemes (UAT DL-009). */
+async function openExternal(url: string) {
+  if (!/^https?:\/\//i.test(url)) {
+    Alert.alert('Link unavailable', 'This application link is not a valid web address.');
+    return;
+  }
+  try {
+    await WebBrowser.openBrowserAsync(url);
+  } catch (err) {
+    Alert.alert("Couldn't open the link", errorMessage(err, 'Check your connection and try again.'));
+  }
+}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -53,31 +71,25 @@ export default function OpportunityDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const queryClient = useQueryClient();
-  const { session } = useAuth();
-  const userId = session!.user.id;
   const { isSaved, toggleSaved } = useSavedOpportunities();
+  const { hasSavedDownloads } = useRole();
+  const form = useFormDownload(id);
 
-  const { data: opportunity, isPending, error } = useQuery({
+  const { data: opportunity, isPending, error, refetch } = useQuery({
     queryKey: queryKeys.opportunity(id),
     queryFn: () => getOpportunity(id),
   });
+
+  // One view event per visit, for the admin's views-vs-downloads analytics.
+  useEffect(() => {
+    recordOpportunityView(id).catch(() => {});
+  }, [id]);
 
   const contributorId = opportunity?.contributor_id;
   const { data: contributor } = useQuery({
     queryKey: queryKeys.contributor(contributorId ?? ''),
     queryFn: () => getContributorProfile(contributorId!),
     enabled: Boolean(contributorId),
-  });
-
-  const download = useMutation({
-    mutationFn: () => recordFormDownload(id),
-    onSuccess: async (formUrl) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.applications(userId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.opportunity(id) });
-      await WebBrowser.openBrowserAsync(formUrl);
-    },
-    onError: (err) => Alert.alert('Could not download form', errorMessage(err, 'Please try again.')),
   });
 
   const saved = isSaved(id);
@@ -104,12 +116,12 @@ export default function OpportunityDetailScreen() {
       <ThemedView style={styles.flex}>
         {header}
         <View style={styles.centered}>
-          {isPending ? (
-            <ActivityIndicator color={theme.primary} />
+          {isPending || (error && !/no rows|0 rows|JSON object/i.test(errorMessage(error, ''))) ? (
+            <QueryState isPending={isPending} error={error} onRetry={() => refetch()} label="this opportunity" />
           ) : (
             <EmptyState
               title="Opportunity unavailable"
-              description={errorMessage(error, 'It may have closed or been removed.')}
+              description="It may have been archived or removed. Forms you already downloaded stay in Saved Downloads."
             />
           )}
         </View>
@@ -198,48 +210,76 @@ export default function OpportunityDetailScreen() {
           </Section>
         )}
 
-        {(opportunity.form_url || opportunity.application_url) && (
-          <Section title="Application forms">
-            <Card style={styles.list}>
-              {opportunity.form_url && (
-                <>
-                  <View style={styles.fileRow}>
-                    <FileText color={theme.primary} size={26} strokeWidth={1.5} />
-                    <View style={styles.flex}>
-                      <ThemedText type="smallBold" numberOfLines={1}>
-                        {fileNameFromUrl(opportunity.form_url)}
-                      </ThemedText>
-                      <ThemedText type="caption" themeColor="textMuted">
-                        {opportunity.downloads_count.toLocaleString('en-ZA')} downloads
-                      </ThemedText>
-                    </View>
+        <Section title="Application forms">
+          <Card style={styles.list}>
+            {opportunity.form_url ? (
+              <>
+                <View style={styles.fileRow}>
+                  <FileText color={theme.primary} size={26} strokeWidth={1.5} />
+                  <View style={styles.flex}>
+                    <ThemedText type="smallBold" numberOfLines={1}>
+                      {fileNameFromUrl(opportunity.form_url)}
+                    </ThemedText>
+                    <ThemedText type="caption" themeColor="textMuted">
+                      {form.saved ? 'Saved on this device' : 'Download to fill in, print or share'}
+                    </ThemedText>
                   </View>
-                  <Button
-                    title="Download application form"
-                    variant="outline"
-                    icon={Download}
-                    onPress={() => download.mutate()}
-                    loading={download.isPending}
-                    disabled={deadline?.closed}
-                  />
-                </>
-              )}
-              {opportunity.application_url && (
+                </View>
+                {form.saved && (
+                  <Button title="Open saved form" icon={FolderOpen} onPress={() => form.open(opportunity.title)} />
+                )}
                 <Button
-                  title="Apply on the provider's site"
-                  variant={opportunity.form_url ? 'ghost' : 'outline'}
-                  icon={ExternalLink}
-                  onPress={() => WebBrowser.openBrowserAsync(opportunity.application_url!)}
+                  title={form.saved ? 'Download again' : 'Download application form'}
+                  variant="outline"
+                  icon={Download}
+                  onPress={() => form.download(opportunity)}
+                  loading={form.downloading}
                   disabled={deadline?.closed}
                 />
-              )}
-              <ThemedText type="caption" themeColor="textSecondary">
-                Supplied by the contributor and reviewed by the Career Insight admin team. Submit
-                completed forms through the channel the provider lists.
-              </ThemedText>
-            </Card>
-          </Section>
-        )}
+                {deadline?.closed && (
+                  <ThemedText type="caption" themeColor="textMuted">
+                    Applications have closed, so the form is no longer available to download.
+                  </ThemedText>
+                )}
+                {hasSavedDownloads && !deadline?.closed && (
+                  <ThemedText type="caption" themeColor="textSecondary">
+                    Downloaded forms are kept in Profile → Saved Downloads.
+                  </ThemedText>
+                )}
+              </>
+            ) : (
+              <View style={styles.fileRow}>
+                <Info color={theme.textMuted} size={22} />
+                <ThemedText type="small" themeColor="textSecondary" style={styles.flex}>
+                  There&apos;s no downloadable form for this opportunity. Follow the provider&apos;s instructions
+                  below to apply.
+                </ThemedText>
+              </View>
+            )}
+          </Card>
+        </Section>
+
+        <Section title="How to apply">
+          <Card style={styles.list}>
+            <ThemedText type="small">
+              {opportunity.external_instructions ||
+                'Complete the application form and submit it directly to the provider using the channel they specify.'}
+            </ThemedText>
+            {opportunity.application_url && (
+              <Button
+                title="Go to the provider's application page"
+                variant="outline"
+                icon={ExternalLink}
+                onPress={() => openExternal(opportunity.application_url!)}
+                disabled={deadline?.closed}
+              />
+            )}
+            <ThemedText type="caption" themeColor="textSecondary">
+              Career Insight shares the form and the provider&apos;s instructions. Your application is submitted to,
+              and decided by, {organisation} — downloading a form doesn&apos;t mean you&apos;ve applied.
+            </ThemedText>
+          </Card>
+        </Section>
 
         <Card style={styles.list}>
           <ThemedText type="smallBold">Before you apply</ThemedText>

@@ -5,19 +5,40 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import { SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, focusManager, onlineManager } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
+import * as Network from 'expo-network';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
+import { AppState, Platform, useColorScheme } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/hooks/use-auth';
 
 SplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: 2, staleTime: 30_000 },
+  },
+});
+
+// Pause queries while offline and refetch when the connection returns (UAT NFR-005).
+// Skipped during Expo Router's web server render, where there is no `window`.
+if (typeof window !== 'undefined') {
+  onlineManager.setEventListener((setOnline) => {
+    const sub = Network.addNetworkStateListener((state) => {
+      setOnline(state.isConnected !== false && state.isInternetReachable !== false);
+    });
+    return () => sub.remove();
+  });
+}
+
+// Refresh stale data when the app comes back to the foreground (e.g. admin edits, ADM-005).
+if (Platform.OS !== 'web') {
+  AppState.addEventListener('change', (status) => focusManager.setFocused(status === 'active'));
+}
 
 function RootNavigator() {
   const { session, profile, loading } = useAuth();
@@ -50,6 +71,13 @@ function RootNavigator() {
       <Stack.Protected guard={signedIn && onboarded} redirectTo={home}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="opportunity/[id]" />
+        <Stack.Screen name="post/[id]" />
+        <Stack.Screen name="post/edit/[id]" />
+        <Stack.Screen name="live/[id]" />
+        <Stack.Screen name="live/new" />
+        <Stack.Screen name="profile/[userId]" />
+        <Stack.Screen name="profile/edit" />
+        <Stack.Screen name="notifications" />
       </Stack.Protected>
 
       <Stack.Protected guard={signedIn && !onboarded} redirectTo={home}>

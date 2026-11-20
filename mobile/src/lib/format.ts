@@ -57,6 +57,28 @@ export function fileNameFromUrl(url: string) {
   }
 }
 
+/** "just now", "5m", "3h", "2d", then a date. */
+export function timeAgo(iso: string) {
+  const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  if (seconds < 7 * 86400) return `${Math.floor(seconds / 86400)}d ago`;
+  return formatDate(iso);
+}
+
+const dateTimeFormat = new Intl.DateTimeFormat('en-GB', {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+export function formatDateTime(iso: string) {
+  return dateTimeFormat.format(new Date(iso));
+}
+
 export function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
 }

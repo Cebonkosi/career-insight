@@ -16,11 +16,16 @@ import Notifications from '@/pages/Notifications'
 import Admin from '@/pages/Admin'
 import AdminOpportunities from '@/pages/AdminOpportunities'
 import AdminModeration from '@/pages/AdminModeration'
-import AdminContributors from '@/pages/AdminContributors'
-import Live from '@/pages/Live'
+import AdminUsers from '@/pages/AdminUsers'
+import AdminLive from '@/pages/AdminLive'
+import AdminAnalytics from '@/pages/AdminAnalytics'
+import AdminAudit from '@/pages/AdminAudit'
 import Polls from '@/pages/Polls'
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  // Refetch when the admin returns to the tab so edits made elsewhere show up.
+  defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
+})
 
 // The web app is the admin console. Students, parents and contributors use the
 // Expo mobile app in ../mobile; AppLayout turns away any non-admin profile.
@@ -41,12 +46,16 @@ export default function App() {
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/admin/opportunities" element={<AdminOpportunities />} />
                 <Route path="/admin/moderation" element={<AdminModeration />} />
-                <Route path="/admin/contributors" element={<AdminContributors />} />
-                {/* The learner-facing opportunity pages now live in the mobile app. */}
+                <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/admin/live" element={<AdminLive />} />
+                <Route path="/admin/analytics" element={<AdminAnalytics />} />
+                <Route path="/admin/audit" element={<AdminAudit />} />
+                <Route path="/admin/contributors" element={<Navigate to="/admin/users?role=pending" replace />} />
+                {/* The learner-facing opportunity and live pages now live in the mobile app. */}
                 <Route path="/opportunities/*" element={<Navigate to="/admin/opportunities" replace />} />
+                <Route path="/live" element={<Navigate to="/admin/live" replace />} />
                 <Route path="/careers" element={<Careers />} />
                 <Route path="/careers/:id" element={<CareerDetail />} />
-                <Route path="/live" element={<Live />} />
                 <Route path="/polls" element={<Polls />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/profile" element={<Profile />} />
