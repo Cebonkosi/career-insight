@@ -49,6 +49,23 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "bde7a5d7-d80a-4a79-a091-1ddcbb23ddad"
+      }
+    },
+    "owner": "cebolenkosi12",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/bde7a5d7-d80a-4a79-a091-1ddcbb23ddad"
     }
   }
 }
